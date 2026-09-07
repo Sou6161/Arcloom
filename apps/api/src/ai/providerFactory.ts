@@ -1,5 +1,5 @@
 import { AIProviderName } from '@decodr/types';
-import { env } from '../config/env.js';
+import { env, primaryOrigin } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import type { AIProvider } from './types.js';
 import { OpenAIProvider } from './providers/OpenAIProvider.js';
@@ -18,7 +18,7 @@ export function createAIProvider(): AIProvider {
         baseURL: env.OPENAI_BASE_URL,
         // OpenRouter attribution headers (harmless/ignored by other providers).
         headers: {
-          'HTTP-Referer': env.WEB_ORIGIN,
+          'HTTP-Referer': primaryOrigin,
           'X-Title': env.AI_SITE_NAME,
         },
         reasoning: env.AI_REASONING,

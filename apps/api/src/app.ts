@@ -1,7 +1,7 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { env } from './config/env.js';
+import { allowedOrigins } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -14,7 +14,7 @@ export function createApp(): Express {
   app.disable('x-powered-by');
   app.use(
     cors({
-      origin: env.WEB_ORIGIN.split(',').map((o) => o.trim()),
+      origin: allowedOrigins,
       credentials: true,
     }),
   );

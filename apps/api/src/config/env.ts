@@ -68,3 +68,18 @@ export const storageRoot = path.isAbsolute(env.STORAGE_DIR)
   : path.resolve(__dirname, '../../', env.STORAGE_DIR);
 
 export const isProd = env.NODE_ENV === 'production';
+
+/**
+ * Every origin allowed by CORS. WEB_ORIGIN may list several, comma-separated,
+ * so the app can be served from more than one domain.
+ */
+export const allowedOrigins = env.WEB_ORIGIN.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+/**
+ * The canonical public origin. Use this wherever a *single* value is required —
+ * notably outbound HTTP headers, where a comma-separated list is not a legal
+ * header value and makes the request fail before it is sent.
+ */
+export const primaryOrigin = allowedOrigins[0] ?? 'http://localhost:5173';
