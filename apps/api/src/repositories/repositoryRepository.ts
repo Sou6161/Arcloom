@@ -21,6 +21,16 @@ export const repositoryRepository = {
     });
   },
 
+  /** How many projects a visitor currently has. */
+  countByOwner(ownerToken: string): Promise<number> {
+    return prisma.repository.count({ where: { ownerToken } });
+  },
+
+  /** Projects older than `cutoff`, for scheduled cleanup. */
+  findOlderThan(cutoff: Date): Promise<RepositoryModel[]> {
+    return prisma.repository.findMany({ where: { createdAt: { lt: cutoff } } });
+  },
+
   update(
     id: string,
     data: Prisma.RepositoryUpdateInput,

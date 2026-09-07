@@ -13,7 +13,9 @@
     "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "db:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "db:studio": "dotenv -e ../../.env -- prisma studio",
-    "db:reset": "dotenv -e ../../.env -- prisma migrate reset"
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@decodr/types": "*",
@@ -22,6 +24,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "multer": "^2.0.1",
     "openai": "^4.77.0",
     "typescript": "^5.7.2",
@@ -37,6 +41,7 @@
     "@types/unzipper": "^0.10.10",
     "dotenv-cli": "^7.4.4",
     "prisma": "^6.1.0",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "vitest": "^4.1.11"
   }
 }

@@ -10,6 +10,13 @@ import { repositoryRepository } from '../repositories/repositoryRepository.js';
 import { fileRepository } from '../repositories/fileRepository.js';
 import { analyzeAndPersist } from './analysisService.js';
 
+/**
+ * How much of each file to persist. Explanations truncate at 22k chars per file,
+ * so anything beyond this is never sent to the model — storing more would only
+ * grow the database.
+ */
+const STORED_CONTENT_LIMIT = 64_000;
+
 /** A file staged on disk (temp path) with the repo-relative path it should live at. */
 export interface StagedFile {
   tempPath: string;
@@ -40,6 +47,8 @@ async function runAnalysis(repositoryId: string, projectDir: string): Promise<vo
       path: f.relativePath,
       sizeBytes: f.sizeBytes,
       lineCount: f.lineCount,
+      // Persisted so explanations keep working after the host wipes its disk.
+      content: f.content.slice(0, STORED_CONTENT_LIMIT),
     })),
   );
 

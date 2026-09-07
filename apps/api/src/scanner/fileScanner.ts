@@ -10,6 +10,8 @@ export interface ScannedFile {
   absolutePath: string;
   sizeBytes: number;
   lineCount: number;
+  /** Source text, already read here to count lines — reused so we never re-read. */
+  content: string;
 }
 
 export interface ScanResult {
@@ -86,6 +88,7 @@ export async function scanRepository(extractedDir: string): Promise<ScanResult> 
         absolutePath,
         sizeBytes: info.size,
         lineCount,
+        content,
       });
     }
   }

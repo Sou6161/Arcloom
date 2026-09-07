@@ -5,6 +5,23 @@ import { toRepositoryDto } from '../repositories/repositoryMapper.js';
 import { AppError } from '../utils/AppError.js';
 import { processRepository, processFolder, type StagedFile } from './repositoryProcessor.js';
 
+/**
+ * Most projects a single visitor may keep at once. Without auth this is the only
+ * bound on how much one person can store, so it protects both disk and database.
+ */
+const MAX_PROJECTS_PER_VISITOR = 10;
+
+/** Rejects the upload when the visitor is already at their project limit. */
+async function assertUnderProjectLimit(ownerToken: string): Promise<void> {
+  const existing = await repositoryRepository.countByOwner(ownerToken);
+  if (existing >= MAX_PROJECTS_PER_VISITOR) {
+    throw AppError.badRequest(
+      `You can keep up to ${MAX_PROJECTS_PER_VISITOR} projects at once. ` +
+        'Delete one to upload another.',
+    );
+  }
+}
+
 /** Cleans a raw folder/zip name into a display name. */
 function cleanName(raw: string): string {
   const base = raw.replace(/\.zip$/i, '').trim();
@@ -25,6 +42,7 @@ export const uploadService = {
     if (!file?.path) {
       throw AppError.badRequest('No file was uploaded under field "file".');
     }
+    await assertUnderProjectLimit(ownerToken);
 
     const repo = await repositoryRepository.create({
       name: cleanName(file.originalname),
@@ -53,6 +71,7 @@ export const uploadService = {
     if (params.files.length === 0) {
       throw AppError.badRequest('No source files were found in that folder.');
     }
+    await assertUnderProjectLimit(params.ownerToken);
 
     const repo = await repositoryRepository.create({
       name: cleanName(params.name),

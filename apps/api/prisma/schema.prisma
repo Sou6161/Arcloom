@@ -80,6 +80,11 @@ model File {
   sizeBytes Int
   lineCount Int
 
+  /// Source text, kept so explanations survive a restart. Uploaded files live on
+  /// an ephemeral disk on most hosts, so the disk copy cannot be relied on.
+  /// Capped at CONTENT_LIMIT bytes; null means "read from disk" (legacy rows).
+  content   String?
+
   components Component[]
   hooks      Hook[]
 

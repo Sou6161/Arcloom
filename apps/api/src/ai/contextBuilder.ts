@@ -228,11 +228,18 @@ export async function buildExplanationContext(
     ]);
   }
 
+  // Source text comes from the database first — the disk copy is ephemeral on
+  // most hosts and disappears on redeploy.
+  const contentByPath = new Map(
+    allFiles.filter((f) => f.content !== null).map((f) => [f.path, f.content as string]),
+  );
+
   const files = await readFiles(
     repo.storagePath,
     orderedPaths.slice(0, maxFiles),
     maxFileChars,
     maxTotalChars,
+    contentByPath,
   );
 
   return { focusName, files, relatedComponents };
@@ -242,12 +249,16 @@ export async function buildExplanationContext(
  * Reads files in relevance order, truncating each to `maxFileChars` and stopping
  * once the cumulative size hits `maxTotalChars` — so the context is as rich as
  * possible without ever exceeding the model's window.
+ *
+ * Stored content wins; the disk is only a fallback for rows saved before content
+ * was persisted.
  */
 async function readFiles(
   projectRoot: string,
   relativePaths: string[],
   maxFileChars: number,
   maxTotalChars: number,
+  stored: Map<string, string>,
 ): Promise<ExplanationContext['files']> {
   const out: ExplanationContext['files'] = [];
   let total = 0;
@@ -255,10 +266,15 @@ async function readFiles(
   for (const relativePath of relativePaths) {
     if (total >= maxTotalChars) break;
     let content: string;
-    try {
-      content = await readFile(path.join(projectRoot, relativePath), 'utf8');
-    } catch {
-      continue;
+    const fromDb = stored.get(relativePath);
+    if (fromDb !== undefined) {
+      content = fromDb;
+    } else {
+      try {
+        content = await readFile(path.join(projectRoot, relativePath), 'utf8');
+      } catch {
+        continue;
+      }
     }
     const cap = Math.min(maxFileChars, maxTotalChars - total);
     const truncated = content.length > cap;

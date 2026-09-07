@@ -137,9 +137,13 @@ function collectDeclarations(
   const components: ParsedComponent[] = [];
   const hooks: ParsedHook[] = [];
 
-  const exportMeta = (name: string, defaultInline: boolean) => {
+  // `inlineExport` covers the `export function Foo()` / `export const Foo =`
+  // form, where the keyword sits on the declaration itself. collectExports only
+  // sees `export { Foo }` and `export default`, so without this the most common
+  // React export style was reported as not exported.
+  const exportMeta = (name: string, defaultInline: boolean, inlineExport: boolean) => {
     const isDefault = defaultInline || exports.defaultName === name;
-    const isExported = isDefault || exports.named.has(name);
+    const isExported = isDefault || inlineExport || exports.named.has(name);
     return {
       isDefaultExport: isDefault,
       isExported,
@@ -147,50 +151,61 @@ function collectDeclarations(
     };
   };
 
-  const addComponent = (name: string, span: ts.Node, defaultInline: boolean) => {
+  const addComponent = (
+    name: string,
+    span: ts.Node,
+    defaultInline: boolean,
+    inlineExport = false,
+  ) => {
     const start = lineAt(sourceFile, span.getStart(sourceFile));
     components.push({
       name,
       startLine: start,
       endLine: lineAt(sourceFile, span.getEnd()),
       renderedTags: collectRenderedTags(span),
-      ...exportMeta(name, defaultInline),
+      ...exportMeta(name, defaultInline, inlineExport),
     });
   };
 
-  const addHook = (name: string, span: ts.Node, defaultInline: boolean) => {
+  const addHook = (
+    name: string,
+    span: ts.Node,
+    defaultInline: boolean,
+    inlineExport = false,
+  ) => {
     hooks.push({
       name,
       startLine: lineAt(sourceFile, span.getStart(sourceFile)),
       endLine: lineAt(sourceFile, span.getEnd()),
-      ...exportMeta(name, defaultInline),
+      ...exportMeta(name, defaultInline, inlineExport),
     });
   };
 
   for (const statement of sourceFile.statements) {
     const defaultInline = hasModifier(statement, ts.SyntaxKind.DefaultKeyword);
+    const inlineExport = hasModifier(statement, ts.SyntaxKind.ExportKeyword);
 
     if (ts.isFunctionDeclaration(statement)) {
       const name = statement.name?.text ?? (defaultInline ? nameFromPath(filePath) : null);
       if (!name) continue;
-      if (isHookName(name)) addHook(name, statement, defaultInline);
+      if (isHookName(name)) addHook(name, statement, defaultInline, inlineExport);
       else if (isComponentName(name) && containsJsx(statement)) {
-        addComponent(name, statement, defaultInline);
+        addComponent(name, statement, defaultInline, inlineExport);
       }
     } else if (ts.isVariableStatement(statement)) {
       for (const decl of statement.declarationList.declarations) {
         if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
         const name = decl.name.text;
         if (isHookName(name) && isFunctionLike(decl.initializer)) {
-          addHook(name, decl, false);
+          addHook(name, decl, false, inlineExport);
         } else if (isComponentName(name) && isComponentInitializer(decl.initializer)) {
-          addComponent(name, decl, false);
+          addComponent(name, decl, false, inlineExport);
         }
       }
     } else if (ts.isClassDeclaration(statement)) {
       const name = statement.name?.text ?? (defaultInline ? nameFromPath(filePath) : null);
       if (name && isComponentName(name) && isClassComponent(statement)) {
-        addComponent(name, statement, defaultInline);
+        addComponent(name, statement, defaultInline, inlineExport);
       }
     }
   }
