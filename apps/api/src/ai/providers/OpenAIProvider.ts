@@ -6,6 +6,20 @@ import type {
   CompletionResult,
 } from '../types.js';
 import { AppError } from '../../utils/AppError.js';
+import { logger } from '../../utils/logger.js';
+
+/**
+ * Unwraps the nested `cause` chain a failed fetch produces. The OpenAI SDK's
+ * APIConnectionError says only "Connection error."; the actual reason
+ * (ENOTFOUND, ECONNRESET, a TLS or timeout code) is buried underneath.
+ */
+function describeCause(err: unknown, depth = 0): string {
+  if (!(err instanceof Error) || depth > 4) return '';
+  const code = (err as NodeJS.ErrnoException).code;
+  const here = code ? `${code}: ${err.message}` : err.message;
+  const deeper = describeCause((err as { cause?: unknown }).cause, depth + 1);
+  return deeper ? `${here} <- ${deeper}` : here;
+}
 
 /** OpenAI implementation of the AIProvider abstraction. */
 export class OpenAIProvider implements AIProvider {
@@ -83,10 +97,16 @@ export class OpenAIProvider implements AIProvider {
         // Prefer the provider/gateway's own error message (e.g. "insufficient credits").
         const detail =
           (err.error as { message?: string } | undefined)?.message ?? err.message;
+        // A connection failure carries no status; the reason is in the cause chain.
+        const cause = err.status === undefined ? describeCause((err as { cause?: unknown }).cause) : '';
+        logger.error(
+          `AI request failed (${err.status ?? 'network'}) model=${this.model} ` +
+            `baseURL=${this.baseURL ?? 'default'}: ${detail}${cause ? ` | cause: ${cause}` : ''}`,
+        );
         throw new AppError(
           502,
           'AI_PROVIDER_ERROR',
-          `AI request failed (${err.status ?? 'network'}): ${detail}`,
+          `AI request failed (${err.status ?? 'network'}): ${detail}${cause ? ` [${cause}]` : ''}`,
         );
       }
       const message = err instanceof Error ? err.message : 'Unknown AI error';
